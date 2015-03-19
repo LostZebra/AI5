@@ -41,9 +41,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DecisionTreeForEqd.cs" />
+    <Compile Include="DecisionTreeForH.cs" />
+    <Compile Include="DecisionTreeForMs.cs" />
     <Compile Include="DiagnosInstance.cs" />
     <Compile Include="Extension.cs" />
+    <Compile Include="MathStudent.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ValueIteration.cs" />

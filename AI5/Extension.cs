@@ -13,5 +13,10 @@ namespace AI5
         {
             return Convert.ToDouble(diagnosInstance.GetType().GetProperty(propertyName).GetValue(diagnosInstance));
         }
+
+        public static int ValueOfPropertyByName(this MathStudent diagnosInstance, string propertyName)
+        {
+            return Convert.ToInt32(diagnosInstance.GetType().GetProperty(propertyName).GetValue(diagnosInstance));
+        }
     }
 }

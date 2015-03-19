@@ -5,12 +5,12 @@ using System.Linq;
 
 namespace AI5
 {
-    internal class DtNodeForEqd
+    internal class DtNode
     {
         public string AttributeName { get; private set; }
         public double Threshold { get; private set; }
-        public DtNodeForEqd GreaterOrEqualTo { get; set; }
-        public DtNodeForEqd Less { get; set; }
+        public DtNode GreaterOrEqualTo { get; set; }
+        public DtNode Less { get; set; }
         public bool? Classification { get; private set; }
 
         /// <summary>
@@ -18,7 +18,7 @@ namespace AI5
         /// </summary>
         /// <param name="attributeName"></param>
         /// <param name="threshold"></param>
-        public DtNodeForEqd(string attributeName, double threshold)
+        public DtNode(string attributeName, double threshold)
         {
             this.AttributeName = attributeName;
             this.Threshold = threshold;
@@ -28,30 +28,30 @@ namespace AI5
         /// Initialize an end node for decision tree to represent a final classification
         /// </summary>
         /// <param name="classification"></param>
-        public DtNodeForEqd(bool classification)
+        public DtNode(bool classification)
         {
             this.Classification = classification;
         }
     }
 
-    class DecisionTreeForEqd
+    class DecisionTreeForH
     {
-        private static readonly List<DiagnosInstance> Data = new List<DiagnosInstance>();
+        private static readonly List<DiagnosInstance> HorseData = new List<DiagnosInstance>();
 
-        private static readonly DecisionTreeForEqd Dt = new DecisionTreeForEqd();
+        private static readonly DecisionTreeForH Dt = new DecisionTreeForH();
 
-        private DecisionTreeForEqd() {}
+        private DecisionTreeForH() {}
 
         /// <summary>
-        /// Load data from trainning set.
+        /// Load data from the trainning set of horses.
         /// </summary>
         /// <param name="dataPath"></param>
         /// <returns></returns>
-        public static DecisionTreeForEqd CreateFromDataInstance(string dataPath)
+        public static DecisionTreeForH CreateFromHorseInstance(string dataPath)
         {
-            if (Data.Count != 0)
+            if (HorseData.Count != 0)
             {
-                Data.Clear();
+                HorseData.Clear();
             }
 
             using (var sw = new StreamReader(dataPath))
@@ -65,7 +65,7 @@ namespace AI5
                     {
                         dataArrayAsDouble[i] = double.Parse(dataArray[i]);
                     }
-                    Data.Add(new DiagnosInstance(!dataArray.Last().Equals("healthy."), dataArrayAsDouble));
+                    HorseData.Add(new DiagnosInstance(dataArray.Last().Equals("colic."), dataArrayAsDouble));
                 }
             }
 
@@ -76,9 +76,9 @@ namespace AI5
         /// Construct the decision tree for the trainning set.
         /// </summary>
         /// <returns></returns>
-        public DtNodeForEqd MakeDecisionTree()
+        public DtNode MakeDecisionTree()
         {
-            return MakeRoot(Data, new HashSet<string>(DiagnosInstance.PropertyNames));
+            return MakeRoot(HorseData, new HashSet<string>(DiagnosInstance.PropertyNames));
         }
 
         /// <summary>
@@ -87,25 +87,25 @@ namespace AI5
         /// <param name="list"></param>
         /// <param name="properitesSet"></param>
         /// <returns></returns>
-        private DtNodeForEqd MakeRoot(List<DiagnosInstance> list, HashSet<string> properitesSet)
+        private DtNode MakeRoot(List<DiagnosInstance> list, HashSet<string> properitesSet)
         {
             // No samples, return healthy as the default classification
             if (list.Count == 0)
             {
-                return new DtNodeForEqd(true);
+                return new DtNode(true);
             }
 
             // If all samples are within the same class, return a final node with the classification
             if (list.TrueForAll(diagnosInstance => diagnosInstance.Result) || list.TrueForAll(diagnosInstance => !diagnosInstance.Result))
             {
-                return new DtNodeForEqd(list[0].Result);
+                return new DtNode(list[0].Result);
             }
 
             // No attributes, return the majority classification
             if (properitesSet.Count == 0)
             {
                 var pos = list.Count(diagnosInstance => diagnosInstance.Result);
-                return pos >= list.Count() / 2 ? new DtNodeForEqd(true) : new DtNodeForEqd(false);
+                return pos >= list.Count() / 2 ? new DtNode(true) : new DtNode(false);
             }
 
             var p = list.Count(diagnosInstance => diagnosInstance.Result);            // Number of positive instance, aka, colic
@@ -138,7 +138,7 @@ namespace AI5
             
             properitesSet.Remove(attributeChosen);
 
-            var newNode = new DtNodeForEqd(attributeChosen, threshold);
+            var newNode = new DtNode(attributeChosen, threshold);
             newNode.GreaterOrEqualTo = MakeRoot(list.Where(diagnosInstance => diagnosInstance.ValueOfPropertyByName(attributeChosen) >= threshold).ToList(), properitesSet);
             newNode.Less = MakeRoot(list.Where(diagnosInstance => diagnosInstance.ValueOfPropertyByName(attributeChosen) < threshold).ToList(), properitesSet);
 
@@ -150,7 +150,7 @@ namespace AI5
         /// </summary>
         /// <param name="root"></param>
         /// <param name="dataPath"></param>
-        public void PerformTest(DtNodeForEqd root, string dataPath)
+        public void PerformTest(DtNode root, string dataPath)
         {
             var testData = new List<DiagnosInstance>();
 
@@ -165,7 +165,7 @@ namespace AI5
                     {
                         dataArrayAsDouble[i] = double.Parse(dataArray[i]);
                     }
-                    testData.Add(new DiagnosInstance(!dataArray.Last().Equals("healthy."), dataArrayAsDouble));
+                    testData.Add(new DiagnosInstance(dataArray.Last().Equals("colic."), dataArrayAsDouble));
                 }
             }
             for (int i = 0; i < testData.Count; ++i)
@@ -181,7 +181,7 @@ namespace AI5
         /// <param name="root"></param>
         /// <param name="diagnosInstance"></param>
         /// <returns></returns>
-        private bool TestOnInstance(DtNodeForEqd root, DiagnosInstance diagnosInstance)
+        private bool TestOnInstance(DtNode root, DiagnosInstance diagnosInstance)
         {
             while (!root.Classification.HasValue)
             {
