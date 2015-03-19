@@ -58,64 +58,92 @@ namespace AI5
         /// Construct the root of each subtree.
         /// </summary>
         /// <param name="list"></param>
-        /// <param name="properitesSet"></param>
+        /// <param name="propertiesSet"></param>
         /// <returns></returns>
-        private DtNode MakeRoot(List<MathStudent> list, HashSet<string> properitesSet)
+		private DtNode MakeRoot(List<MathStudent> list, HashSet<string> propertiesSet)
         {
-            // No samples, return healthy as the default classification
-            if (list.Count == 0)
-            {
-                return new DtNode(true);
-            }
+			// No samples, return healthy as the default classification
+			if (list.Count == 0)
+			{
+				return new DtNode(true);
+			}
 
-            // If all samples are within the same class, return a final node with the classification
-            if (list.TrueForAll(mathStudent => mathStudent.Result) || list.TrueForAll(mathStudent => !mathStudent.Result))
-            {
-                return new DtNode(list[0].Result);
-            }
+			// If all samples are within the same class, return a final node with the classification
+			if (list.TrueForAll(studentInstance => studentInstance.Result) || list.TrueForAll(studentInstance => !studentInstance.Result))
+			{
+				return new DtNode(list[0].Result);
+			}
 
-            // No attributes, return the majority classification
-            if (properitesSet.Count == 0)
-            {
-                var pos = list.Count(mathStudent => mathStudent.Result);
-                return pos >= list.Count() / 2 ? new DtNode(true) : new DtNode(false);
-            }
+			// No attributes, return the majority classification
+			if (propertiesSet.Count == 0)
+			{
+				var pos = list.Count(studentInstance => studentInstance.Result);
+				return pos >= list.Count() / 2 ? new DtNode(true) : new DtNode(false);
+			}
 
-            var p = list.Count(mathStudent => mathStudent.Result);            // Number of positive instance, aka, colic
-            var n = list.Count - p;                                                   // Number of negative instance, aka, healthy
-            var ic = InformationContent(p, n);                                        // Information content of current data set
+			var p = list.Count(studentInstance => studentInstance.Result);            // Number of positive instance, aka, colic
+			var n = list.Count - p;                                                                           // Number of negative instance, aka, healthy
+			var ic = InformationContent(p, n);                                                        // Information content of current data set
 
-            var attributesToIga = new Dictionary<string, double>();                   // Attribute and its corresponding Information Gain
+			var maxIga = double.MinValue;                                                            // Max information gain
+			var bestAttribute = string.Empty;                                                         // Best attribute
+			var bestThreshold = 0.0;                                                                      // Best threshold
 
-            foreach (var attributeName in properitesSet)
-            {
-                // Get all values for certain attribute
-                var valuesForAttributeName = new HashSet<int>(list.Select(mathStudent => mathStudent.ValueOfPropertyByName(attributeName)));
-                // Remainder of the attribute
-                var remainder = 0.0;
-                foreach (var value in valuesForAttributeName)
-                {
-                    // Calculate the number of positive and negative instance of which the value of <attributeName> equals <value>
-                    var itemsMatched = list.Where(mathStudent => mathStudent.ValueOfPropertyByName(attributeName) == value).ToList();
-                    var pos = itemsMatched.Count(mathStudent => mathStudent.Result);
-                    var neg = itemsMatched.Count() - pos;
-                    remainder += ((double)pos + neg) / (p + n) * InformationContent(pos, neg);
-                }
-                attributesToIga.Add(attributeName, ic - remainder);
-            }
+			foreach (var attributeName in propertiesSet)
+			{
+				// Get all distinct values for certain attribute
+				var valuesForAttributeName = list.Select(studentInstance => studentInstance.ValueOfPropertyByName(attributeName)).Distinct().ToList(); 
+				// Sort all values in non-descending order
+				valuesForAttributeName.Sort ((first, second) => Comparer<double>.Default.Compare (first, second));
 
-            var attributeChosen = attributesToIga.Aggregate((first, second) => first.Value > second.Value ? first : second).Key;
+				if (valuesForAttributeName.Count == 1) {
+					var mid = valuesForAttributeName [0];
+					// Get all instance of which the value of <attributeName> is GreaterThanOrEqualTo or Less than mid
+					var greaterOrEqualTo = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) >= mid).ToList ();
+					var less = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) < mid).ToList ();	
+					// Get the number of positive and negative instance for both groups above
+					var posG = greaterOrEqualTo.Count (studentInstance => studentInstance.Result);
+					var negG = greaterOrEqualTo.Count - posG;
+					var posL = less.Count (studentInstance => studentInstance.Result);
+					var negL = less.Count - posL;
+					var iga = ic - (((double)posG + negG) / (p + n) * InformationContent (posG, negG) + ((double)posL + negL) / (p + n) * InformationContent (posL, negL));
+					if (iga > maxIga) {
+						maxIga = iga;
+						bestThreshold = mid;
+						bestAttribute = attributeName;
+					}
+				} 
+				else
+				{
+					for (int i = 1; i < valuesForAttributeName.Count; ++i) 
+					{
+						var mid = (valuesForAttributeName [i - 1] + valuesForAttributeName [i]) / 2;
+						// Get all instance of which the value of <attributeName> is GreaterThanOrEqualTo or Less than mid
+						var greaterOrEqualTo = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) >= mid).ToList ();
+						var less = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) < mid).ToList ();	
+						// Get the number of positive and negative instance for both groups above
+						var posG = greaterOrEqualTo.Count (studentInstance => studentInstance.Result);
+						var negG = greaterOrEqualTo.Count - posG;
+						var posL = less.Count (studentInstance => studentInstance.Result);
+						var negL = less.Count - posL;
+						var iga = ic - (((double)posG + negG) / (p + n) * InformationContent (posG, negG) + ((double)posL + negL) / (p + n) * InformationContent (posL, negL));
+						if (iga > maxIga) 
+						{
+							maxIga = iga;
+							bestThreshold = mid;
+							bestAttribute = attributeName;
+						}
+					}
+				}
+			}
 
-            // <!--Still need to compute the threshold--!>
-            var threshold = CalculateThreshold(list, attributeChosen);
+			propertiesSet.Remove(bestAttribute);
 
-            properitesSet.Remove(attributeChosen);
+			var newNode = new DtNode(bestAttribute, bestThreshold);
+			newNode.GreaterOrEqualTo = MakeRoot(list.Where(studentInstance => studentInstance.ValueOfPropertyByName(bestAttribute) >= bestThreshold).ToList(), propertiesSet);
+			newNode.Less = MakeRoot(list.Where(studentInstance => studentInstance.ValueOfPropertyByName(bestAttribute) < bestThreshold).ToList(), propertiesSet);
 
-            var newNode = new DtNode(attributeChosen, threshold);
-            newNode.GreaterOrEqualTo = MakeRoot(list.Where(mathStudent => mathStudent.ValueOfPropertyByName(attributeChosen) >= threshold).ToList(), properitesSet);
-            newNode.Less = MakeRoot(list.Where(mathStudent => mathStudent.ValueOfPropertyByName(attributeChosen) < threshold).ToList(), properitesSet);
-
-            return newNode;
+			return newNode;
         }
 
         /// <summary>
@@ -182,51 +210,6 @@ namespace AI5
         }
 
         /// <summary>
-        /// Calculate the best threshold for certain attribute.
-        /// </summary>
-        /// <param name="list"></param>
-        /// <param name="propertyName"></param>
-        /// <returns></returns>
-        private double CalculateThreshold(List<MathStudent> list, string propertyName)
-        {
-            var potentionThresholds = new List<double>();
-            // Sort the remaining list on <propertyName>
-            list.Sort((element1, element2) => Comparer<int>.Default.Compare(element1.ValueOfPropertyByName(propertyName), element2.ValueOfPropertyByName(propertyName)));
-            // Get all potential thresholds by getting the average of every two successive value of <propertyName> 
-            list.Aggregate((first, second) =>
-            {
-                var mid = ((double)first.ValueOfPropertyByName(propertyName) + second.ValueOfPropertyByName(propertyName)) / 2;
-                potentionThresholds.Add(mid);
-                return second;
-            });
-
-            // The threshold with maximum information gain has minimum remainder
-            var minRemainder = double.MaxValue;
-            var threshold = double.MaxValue;
-            // Get the threshold which has the minimum remainder
-            foreach (var potentialThreshold in potentionThresholds)
-            {
-                var greaterOrEqualTo = list.Where(mathStudent => mathStudent.ValueOfPropertyByName(propertyName) >= potentialThreshold).ToList();
-                var less = list.Where(mathStudent => mathStudent.ValueOfPropertyByName(propertyName) < potentialThreshold).ToList();
-
-                var pos = greaterOrEqualTo.Count(mathStudent => mathStudent.Result);
-                var neg = greaterOrEqualTo.Count - pos;
-                var remainder = ((double)greaterOrEqualTo.Count / list.Count) * InformationContent(pos, neg);
-                pos = less.Count(mathStudent => mathStudent.Result);
-                neg = less.Count - pos;
-                remainder += ((double)less.Count / list.Count) * InformationContent(pos, neg);
-
-                if (remainder < minRemainder)
-                {
-                    minRemainder = remainder;
-                    threshold = potentialThreshold;
-                }
-            }
-
-            return threshold;
-        }
-
-        /// <summary>
         /// Calculate the Information Content of a data set given the number of Positive and Negative instance
         /// </summary>
         /// <param name="p"></param>
@@ -234,6 +217,10 @@ namespace AI5
         /// <returns></returns>
         private double InformationContent(int p, int n)
         {
+			if (p == 0 && n == 0)
+			{
+				return 0;
+			}
             return -(((double)p / (p + n)) * (p != 0 ? Math.Log((double)p / (p + n), 2) : 0) + ((double)n / (p + n)) * (n != 0 ? Math.Log((double)n / (p + n), 2) : 0));
         }
     }
