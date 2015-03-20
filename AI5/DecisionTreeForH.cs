@@ -5,6 +5,9 @@ using System.Linq;
 
 namespace AI5
 {
+    /// <summary>
+    /// Decision tree node.
+    /// </summary>
     internal class DtNode
     {
         public string AttributeName { get; private set; }
@@ -54,6 +57,7 @@ namespace AI5
                 HorseData.Clear();
             }
 
+            // Read data from file, each line of horse instance is added to HorseData
             using (var sw = new StreamReader(dataPath))
             {
                 string newLine;
@@ -65,6 +69,7 @@ namespace AI5
                     {
                         dataArrayAsDouble[i] = double.Parse(dataArray[i]);
                     }
+                    // True for "colic.", False for "healthy."
                     HorseData.Add(new DiagnosInstance(dataArray.Last().Equals("colic."), dataArrayAsDouble));
                 }
             }
@@ -121,20 +126,20 @@ namespace AI5
                 // Get all distinct values for certain attribute
 				var valuesForAttributeName = list.Select(diagnosInstance => diagnosInstance.ValueOfPropertyByName(attributeName)).Distinct().ToList(); 
 				// Sort all values in non-descending order
-				valuesForAttributeName.Sort ((first, second) => Comparer<double>.Default.Compare (first, second));
+				valuesForAttributeName.Sort((first, second) => Comparer<double>.Default.Compare(first, second));
 
 				for (int i = 1; i < valuesForAttributeName.Count; ++i) 
 				{
-					var mid = (valuesForAttributeName [i - 1] + valuesForAttributeName [i]) / 2;
+					var mid = (valuesForAttributeName[i - 1] + valuesForAttributeName[i]) / 2;
 					// Get all instance of which the value of <attributeName> is GreaterThanOrEqualTo or Less than mid
-					var greaterOrEqualTo = list.Where (diagnosInstance => diagnosInstance.ValueOfPropertyByName (attributeName) >= mid).ToList ();
-					var less = list.Where (diagnosInstance => diagnosInstance.ValueOfPropertyByName (attributeName) < mid).ToList ();	
+					var greaterOrEqualTo = list.Where(diagnosInstance => diagnosInstance.ValueOfPropertyByName(attributeName) >= mid).ToList();
+					var less = list.Where(diagnosInstance => diagnosInstance.ValueOfPropertyByName(attributeName) < mid).ToList();	
 					// Get the number of positive and negative instance for both groups above
-					var posG = greaterOrEqualTo.Count (diagnosInstance => diagnosInstance.Result);
+					var posG = greaterOrEqualTo.Count(diagnosInstance => diagnosInstance.Result);
 					var negG = greaterOrEqualTo.Count - posG;
-					var posL = less.Count (diagnosInstance => diagnosInstance.Result);
+					var posL = less.Count(diagnosInstance => diagnosInstance.Result);
 					var negL = less.Count - posL;
-					var iga = ic - (((double)posG + negG) / (p + n) * InformationContent (posG, negG) + ((double)posL + negL) / (p + n) * InformationContent (posL, negL));
+					var iga = ic - (((double)posG + negG) / (p + n) * InformationContent(posG, negG) + ((double)posL + negL) / (p + n) * InformationContent(posL, negL));
 					if (iga > maxIga) 
 					{
 						maxIga = iga;
@@ -178,25 +183,34 @@ namespace AI5
             }
 
 			var numOfSuccess = 0;
-			var numOfFailure = 0;
-            for (int i = 0; i < testData.Count; ++i)
+			var numOfFail = 0;
+            using (var tr = new StreamWriter(string.Format(@"E:\{0}_result.txt", dataPath.Substring(3, dataPath.Length - 7))))
             {
-                var diagnosInstance = testData[i];
-				var result = TestOnInstance (root, diagnosInstance);
-				if (result == diagnosInstance.Result) {
-					Console.WriteLine ("The classification on instance {0} is successful!", i + 1);
-					Console.WriteLine ("The actual classification is {0}, the decision tree classification is: {1}", diagnosInstance.Result, result);
-					numOfSuccess++;
-				} 
-				else
-				{
-					Console.WriteLine ("The classification on instance {0} is failed!", i + 1);
-					Console.WriteLine ("The actual classification is {0}, the decision tree classification is: {1}", diagnosInstance.Result, result);
-					numOfFailure++;
-				}
-            }
+                tr.WriteLine("Classification result");
+                tr.WriteLine("===================================================================");
+                for (int i = 0; i < testData.Count; ++i)
+                {
+                    var mathStudent = testData[i];
+                    var result = TestOnInstance(root, mathStudent);
+                    if (result == mathStudent.Result)
+                    {
+                        tr.WriteLine("The classification on instance {0} is successful", i + 1);
+                        tr.WriteLine("Actual result: {0}, Decision Tree result: {1}", mathStudent.Result ? "colic" : "healthy", result ? "colic" : "healthy");
+                        numOfSuccess++;
+                    }
+                    else
+                    {
+                        tr.WriteLine("The classification on instance {0} is failed", i + 1);
+                        tr.WriteLine("Actual result: {0}, Decision Tree result: {1}", mathStudent.Result ? "colic" : "healthy", result ? "colic" : "healthy");
+                        numOfFail++;
+                    }
 
-			Console.WriteLine("Success: {0}, Failed: {1}, Rate: {2}", numOfSuccess, numOfFailure, (double)numOfSuccess / (numOfSuccess + numOfFailure));
+                    tr.Write("\n");
+                }
+
+                tr.WriteLine("Success: {0}, Failed: {1}, Success Rate: {2}%", numOfSuccess, numOfFail,
+                    (double)numOfSuccess / (numOfSuccess + numOfFail) * 100);
+            }
         }
 
         /// <summary>

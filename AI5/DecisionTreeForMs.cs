@@ -25,6 +25,7 @@ namespace AI5
                 StudentData.Clear();
             }
 
+            // Read data from file, each line of horse instance is added to HorseData
             using (var sw = new StreamReader(dataPath))
             {
                 int count = 0;
@@ -38,6 +39,7 @@ namespace AI5
                     }
 
                     var dataArray = newLine.Split(',').Select(int.Parse).ToArray();
+                    // True for 1, False for 0
                     StudentData.Add(new MathStudent(dataArray.Last() == 1, dataArray));
                 }
             }
@@ -82,31 +84,31 @@ namespace AI5
 			}
 
 			var p = list.Count(studentInstance => studentInstance.Result);            // Number of positive instance, aka, colic
-			var n = list.Count - p;                                                                           // Number of negative instance, aka, healthy
-			var ic = InformationContent(p, n);                                                        // Information content of current data set
+			var n = list.Count - p;                                                   // Number of negative instance, aka, healthy
+			var ic = InformationContent(p, n);                                        // Information content of current data set
 
-			var maxIga = double.MinValue;                                                            // Max information gain
-			var bestAttribute = string.Empty;                                                         // Best attribute
-			var bestThreshold = 0.0;                                                                      // Best threshold
+			var maxIga = double.MinValue;                                             // Max information gain
+			var bestAttribute = string.Empty;                                         // Best attribute
+			var bestThreshold = 0.0;                                                  // Best threshold
 
 			foreach (var attributeName in propertiesSet)
 			{
 				// Get all distinct values for certain attribute
 				var valuesForAttributeName = list.Select(studentInstance => studentInstance.ValueOfPropertyByName(attributeName)).Distinct().ToList(); 
 				// Sort all values in non-descending order
-				valuesForAttributeName.Sort ((first, second) => Comparer<double>.Default.Compare (first, second));
+				valuesForAttributeName.Sort((first, second) => Comparer<double>.Default.Compare(first, second));
 
 				if (valuesForAttributeName.Count == 1) {
-					var mid = valuesForAttributeName [0];
+					var mid = valuesForAttributeName[0];
 					// Get all instance of which the value of <attributeName> is GreaterThanOrEqualTo or Less than mid
-					var greaterOrEqualTo = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) >= mid).ToList ();
-					var less = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) < mid).ToList ();	
+					var greaterOrEqualTo = list.Where(studentInstance => studentInstance.ValueOfPropertyByName(attributeName) >= mid).ToList();
+					var less = list.Where(studentInstance => studentInstance.ValueOfPropertyByName(attributeName) < mid).ToList();	
 					// Get the number of positive and negative instance for both groups above
-					var posG = greaterOrEqualTo.Count (studentInstance => studentInstance.Result);
+					var posG = greaterOrEqualTo.Count(studentInstance => studentInstance.Result);
 					var negG = greaterOrEqualTo.Count - posG;
-					var posL = less.Count (studentInstance => studentInstance.Result);
+					var posL = less.Count(studentInstance => studentInstance.Result);
 					var negL = less.Count - posL;
-					var iga = ic - (((double)posG + negG) / (p + n) * InformationContent (posG, negG) + ((double)posL + negL) / (p + n) * InformationContent (posL, negL));
+					var iga = ic - (((double)posG + negG) / (p + n) * InformationContent(posG, negG) + ((double)posL + negL) / (p + n) * InformationContent(posL, negL));
 					if (iga > maxIga) {
 						maxIga = iga;
 						bestThreshold = mid;
@@ -117,16 +119,16 @@ namespace AI5
 				{
 					for (int i = 1; i < valuesForAttributeName.Count; ++i) 
 					{
-						var mid = (valuesForAttributeName [i - 1] + valuesForAttributeName [i]) / 2;
+						var mid = (valuesForAttributeName[i - 1] + valuesForAttributeName[i]) / 2;
 						// Get all instance of which the value of <attributeName> is GreaterThanOrEqualTo or Less than mid
-						var greaterOrEqualTo = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) >= mid).ToList ();
-						var less = list.Where (studentInstance => studentInstance.ValueOfPropertyByName (attributeName) < mid).ToList ();	
+						var greaterOrEqualTo = list.Where(studentInstance => studentInstance.ValueOfPropertyByName(attributeName) >= mid).ToList();
+						var less = list.Where(studentInstance => studentInstance.ValueOfPropertyByName(attributeName) < mid).ToList();	
 						// Get the number of positive and negative instance for both groups above
-						var posG = greaterOrEqualTo.Count (studentInstance => studentInstance.Result);
+						var posG = greaterOrEqualTo.Count(studentInstance => studentInstance.Result);
 						var negG = greaterOrEqualTo.Count - posG;
-						var posL = less.Count (studentInstance => studentInstance.Result);
+						var posL = less.Count(studentInstance => studentInstance.Result);
 						var negL = less.Count - posL;
-						var iga = ic - (((double)posG + negG) / (p + n) * InformationContent (posG, negG) + ((double)posL + negL) / (p + n) * InformationContent (posL, negL));
+						var iga = ic - (((double)posG + negG) / (p + n) * InformationContent(posG, negG) + ((double)posL + negL) / (p + n) * InformationContent(posL, negL));
 						if (iga > maxIga) 
 						{
 							maxIga = iga;
@@ -153,8 +155,7 @@ namespace AI5
         /// <param name="dataPath"></param>
         public void PerformTest(DtNode root, string dataPath)
         {
-            var success = 0;
-            var fail = 0;
+            
             var testData = new List<MathStudent>();
 
             using (var sw = new StreamReader(dataPath))
@@ -174,22 +175,35 @@ namespace AI5
                 }
             }
 
-            for (int i = 0; i < testData.Count; ++i)
+            var numOfSuccess = 0;
+            var numOfFail = 0;
+            using (var tr = new StreamWriter(string.Format(@"E:\{0}_result.txt", dataPath.Substring(3, dataPath.Length - 7))))
             {
-                var mathStudent = testData[i];
-                if (TestOnInstance(root, mathStudent) == mathStudent.Result)
+                tr.WriteLine("Classification result");
+                tr.WriteLine("===================================================================");
+                for (int i = 0; i < testData.Count; ++i)
                 {
-                    Console.WriteLine("The classification on {0} is successful", i + 1);
-                    success++;
-                }
-                else
-                {
-                    Console.WriteLine("The classification on {0} is failed", i + 1);
-                    fail++;
-                }
-            }
+                    var mathStudent = testData[i];
+                    var result = TestOnInstance(root, mathStudent);
+                    if (result == mathStudent.Result)
+                    {
+                        tr.WriteLine("The classification on instance {0} is successful", i + 1);
+                        tr.WriteLine("Actual result: {0}, Decision Tree result: {1}", mathStudent.Result ? "Pass(1)" : "Failed(0)", result ? "Pass(1)" : "Failed(0)");
+                        numOfSuccess++;
+                    }
+                    else
+                    {
+                        tr.WriteLine("The classification on instance {0} is failed", i + 1);
+                        tr.WriteLine("Actual result: {0}, Decision Tree result: {1}", mathStudent.Result ? "Pass(1)" : "Failed(0)", result ? "Pass(1)" : "Failed(0)");
+                        numOfFail++;
+                    }
 
-            Console.WriteLine("Success: {0}, Failed: {1}, Rate: {2}", success, fail, (double)success / (success + fail));
+                    tr.Write("\n");
+                }
+
+                tr.WriteLine("Success: {0}, Failed: {1}, Success Rate: {2}%", numOfSuccess, numOfFail,
+                    (double) numOfSuccess / (numOfSuccess + numOfFail) * 100);
+            }
         }
 
         /// <summary>

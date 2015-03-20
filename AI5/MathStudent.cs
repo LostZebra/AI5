@@ -39,6 +39,7 @@ namespace AI5
         /// <summary>
         /// Initialize a new instance of MathStudent using data provided.
         /// </summary>
+        /// <param name="result"></param>
         /// <param name="parameters"></param>
         public MathStudent(bool result, params int[] parameters)
         {

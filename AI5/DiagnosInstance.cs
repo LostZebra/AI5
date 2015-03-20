@@ -22,7 +22,7 @@ namespace AI5
         public double Fibrinogen { get; private set; }
         public double Dimer { get; private set; }
         public double FibPerDim { get; private set; }
-        public bool Result { get; private set; }
+        public bool Result { get; private set; }                      // True if this instance is diagnosed as Colic, otherwise Healthy
 
         /// <summary>
         /// Initialize a new instance of DiagnosInstance using data provided.
